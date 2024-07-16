@@ -1,52 +1,63 @@
-import os.path
+from config import create_link
+from rich.console import Console
 
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+console = Console()
 
-# If modifying these scopes, delete the file token.json.
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+
+def get_labels(gmailservice):
+    # retrieve labels through the googleAPI
+    results = gmailservice.users().labels().list(userId="me").execute()
+    labels = [label.get("name", "Unkown") for label in results.get("labels", [])]
+
+    # if no labels were found, return None and inform the user
+    if not labels:
+        console.print("No labels found!")
+        return None
+    return labels
+
+
+def get_from_headers(gmailservice):
+    # initialize returnlist and retrieve all messagethreads through googleAPI
+    from_header_values = []
+    threads = (
+        gmailservice.users().threads().list(userId="me").execute().get("threads", [])
+    )
+    # loop through the threads to extract the wanted data
+    for thread in threads:
+        tdata = (
+            gmailservice.users().threads().get(userId="me", id=thread["id"]).execute()
+        )
+        for message in tdata["messages"]:
+            # extract the needed information based on the dictionary keys
+            headers = message["payload"]["headers"]
+            from_header = [
+                header["value"]
+                for header in headers
+                if header["name"].lower() == "from"
+            ]
+            from_header_values.extend(from_header)
+            # clean up result upon returning
+    return [
+        header.split("<")[1].split(">")[0]
+        for header in from_header_values
+        if "<" in header and ">" in header
+    ]
+
+
+def move_email_to_label(gmailservice):
+    pass
+
+
+def create_labels(gmailservice):
+    pass
 
 
 def main():
-    """Shows basic usage of the Gmail API.
-    Lists the user's Gmail labels.
-    """
-    creds = None
-    # The file token.json stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
+    gmailservice = create_link()
+    get_labels(gmailservice)
+    senders = get_from_headers(gmailservice)
 
-    try:
-        # Call the Gmail API
-        service = build("gmail", "v1", credentials=creds)
-        results = service.users().labels().list(userId="me").execute()
-        labels = results.get("labels", [])
-
-        if not labels:
-            print("No labels found.")
-            return
-        print("Labels:")
-        for label in labels:
-            print(label["name"])
-
-    except HttpError as error:
-        # TODO(developer) - Handle errors from gmail API.
-        print(f"An error occurred: {error}")
+    console.print(senders)
 
 
 if __name__ == "__main__":
