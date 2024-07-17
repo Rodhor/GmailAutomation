@@ -16,9 +16,9 @@ def get_labels(gmailservice):
     return labels
 
 
-def get_from_headers(gmailservice):
+def get_from_and_id_headers(gmailservice):
     # initialize returnlist and retrieve all messagethreads through googleAPI
-    from_header_values = []
+    from_and_id_values = {}
     threads = (
         gmailservice.users().threads().list(userId="me").execute().get("threads", [])
     )
@@ -28,20 +28,23 @@ def get_from_headers(gmailservice):
             gmailservice.users().threads().get(userId="me", id=thread["id"]).execute()
         )
         for message in tdata["messages"]:
-            # extract the needed information based on the dictionary keys
+            # Extract headers
             headers = message["payload"]["headers"]
-            from_header = [
-                header["value"]
-                for header in headers
-                if header["name"].lower() == "from"
-            ]
-            from_header_values.extend(from_header)
-            # clean up result upon returning
-    return [
-        header.split("<")[1].split(">")[0]
-        for header in from_header_values
-        if "<" in header and ">" in header
-    ]
+            from_email = None
+            id_header = None
+
+            for header in headers:
+                if header["name"].lower() == "from":
+                    if "<" in header["value"] and ">" in header["value"]:
+                        from_email = header["value"].split("<")[1].split(">")[0]
+                    else:
+                        from_email = header["value"]
+                elif header["name"].lower() == "message-id":
+                    id_header = header["value"]
+
+                if from_email and id_header:
+                    from_and_id_values[id_header] = from_email
+    return from_and_id_values
 
 
 def move_email_to_label(gmailservice):
@@ -54,10 +57,8 @@ def create_labels(gmailservice):
 
 def main():
     gmailservice = create_link()
-    get_labels(gmailservice)
-    senders = get_from_headers(gmailservice)
-
-    console.print(senders)
+    labels = get_labels(gmailservice)
+    email_information = get_from_and_id_headers(gmailservice)
 
 
 if __name__ == "__main__":
