@@ -1,5 +1,6 @@
 from config import create_link
 from rich.console import Console
+from db import Database
 
 console = Console()
 
@@ -56,6 +57,7 @@ def create_labels(gmailservice):
 
 
 def main():
+    db = Database()
     gmailservice = create_link()
     labels = get_labels(gmailservice)
     email_information = get_from_and_id_headers(gmailservice)
