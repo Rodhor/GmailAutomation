@@ -28,7 +28,7 @@ class Database:
         except sqlite3.Error as e:
             print(f"Error creating tables: {e}")
 
-    def assign_label_to_email(self, email, label):
+    def assign_label_to_email(self, email, label) -> bool:
         try:
             email_id = self.get_or_create_email_id(email)
             label_id = self.get_or_create_label_id(label)
@@ -38,10 +38,12 @@ class Database:
                 (email_id, label_id),
             )
             self.con.commit()
+            return True
         except sqlite3.Error as e:
             print(f"Error assigning label to email: {e}")
+            return False
 
-    def get_or_create_email_id(self, email):
+    def get_or_create_email_id(self, email) -> int | None:
         try:
             # Check if email exists and return the id
             self.cursor.execute("SELECT id FROM Emails WHERE email = ?", (email,))
@@ -57,7 +59,7 @@ class Database:
             print(f"Error getting or creating email ID: {e}")
             return None
 
-    def get_or_create_label_id(self, label):
+    def get_or_create_label_id(self, label) -> int | None:
         try:
             # Check if label exists
             self.cursor.execute("SELECT id FROM Labels WHERE label = ?", (label,))
@@ -73,7 +75,7 @@ class Database:
             print(f"Error getting or creating label ID: {e}")
             return None
 
-    def update_label_for_email(self, email, new_label):
+    def update_label_for_email(self, email, new_label) -> bool:
         try:
             email_id = self.get_or_create_email_id(email)
             label_id = self.get_or_create_label_id(new_label)
@@ -84,8 +86,10 @@ class Database:
                 (email_id, label_id),
             )
             self.con.commit()
+            return True
         except sqlite3.Error as e:
             print(f"Error updating label for email: {e}")
+            return False
 
     def close_connection(self):
         self.con.close()
